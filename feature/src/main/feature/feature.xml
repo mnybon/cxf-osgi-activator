@@ -19,10 +19,20 @@
 <features xlmns="http://karaf.apache.org/xmlns/features/v1.4.0"
 	  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	  xsi:schemaLocation="http://karaf.apache.org/xmlns/features/v1.4.0" 
-	  name="ManagedProperties">
+	  name="CxfOSGiDeployer">
   
 
-  <feature name="cxf_rest_deployer" version="${project.version}">
+  <feature name="cxf_osgi_deployer" version="${project.version}">
+       <feature>cxf_osgi_jetty_deployer</feature>
+       <feature>cxf_osgis_rest_deployer</feature>
+  </feature>   
+        
+  <feature name="cxf_osgi_jetty_deployer" version="${project.version}">
+      <feature>cxf</feature>
+      <bundle>mvn:${project.groupId}/cxf-osgi-activator-deployer-jetty/${project.version}</bundle>
+  </feature>
+    
+  <feature name="cxf_osgis_rest_deployer" version="${project.version}">
       <feature>cxf</feature>
       <bundle>mvn:${project.groupId}/cxf-osgi-activator-deployer-rs/${project.version}</bundle>
   </feature>

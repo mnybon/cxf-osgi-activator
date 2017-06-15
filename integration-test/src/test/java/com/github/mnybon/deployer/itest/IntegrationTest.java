@@ -16,6 +16,7 @@
 package com.github.mnybon.deployer.itest;
 
 import java.io.File;
+import java.io.IOException;
 import javax.inject.Inject;
 import org.junit.runner.RunWith;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
@@ -25,6 +26,7 @@ import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
 
 import static org.junit.Assert.*;
+import org.junit.Test;
 import org.ops4j.pax.exam.Configuration;
 import static org.ops4j.pax.exam.CoreOptions.*;
 import org.ops4j.pax.exam.Option;
@@ -64,9 +66,15 @@ public class IntegrationTest {
                 .classifier("features")
                 .type("xml")
                 .versionAsInProject();
-        MavenUrlReference managedPropertiesRepo = maven()
-                .groupId("dk.netdesign")
-                .artifactId("managedproperties-feature")
+        MavenUrlReference cxfRepo = maven()
+                .groupId("org.apache.cxf.karaf")
+                .artifactId("apache-cxf")
+                .classifier("features")
+                .type("xml")
+                .versionAsInProject();
+        MavenUrlReference serviceDeployerRepo = maven()
+                .groupId("com.github.mnybon")
+                .artifactId("cxf-osgi-activator-feature")
                 .classifier("features")
                 .type("xml")
                 .versionAsInProject();
@@ -79,9 +87,15 @@ public class IntegrationTest {
             .useDeployFolder(false),
             keepRuntimeFolder(),
             features(karafStandardRepo, "scr", "webconsole"),
-            features(managedPropertiesRepo, "cxf-osgi-activator-deployer-rs"),
-            replaceConfigurationFile("etc/org.ops4j.pax.logging.cfg", new File(this.getClass().getClassLoader().getResource("dk/netdesign/common/osgi/config/test/org.ops4j.pax.logging.cfg").toURI())),
-            replaceConfigurationFile("etc/org.ops4j.pax.url.mvn.cfg", new File(this.getClass().getClassLoader().getResource("dk/netdesign/common/osgi/config/test/org.ops4j.pax.url.mvn.cfg").toURI())),};
+            features(cxfRepo, "cxf"),
+            features(serviceDeployerRepo, "cxf_osgi_jetty_deployer"),
+            replaceConfigurationFile("etc/org.ops4j.pax.logging.cfg", new File(this.getClass().getClassLoader().getResource("com/github/mnybon/deployer/itest/org.ops4j.pax.logging.cfg").toURI())),
+            replaceConfigurationFile("etc/org.ops4j.pax.url.mvn.cfg", new File(this.getClass().getClassLoader().getResource("com/github/mnybon/deployer/itest/org.ops4j.pax.url.mvn.cfg").toURI())),};
+    }
+    
+    @Test
+    public void dontStopTillYouGetEnough() throws Exception{
+        System.in.read();
     }
 
 }

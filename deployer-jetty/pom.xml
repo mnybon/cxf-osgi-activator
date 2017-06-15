@@ -7,23 +7,9 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <groupId>com.github.mnybon</groupId>
-    <artifactId>cxf-osgi-activator-integration-test</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>CXF OSGi Service Deployer Integration Test</name>
-	
-    <profiles>
-        <profile>
-            <id>build-server-skip-itest</id>
-            <activation>
-                <property>
-                    <name>env.BUILD_NUMBER</name>
-                </property>
-            </activation>
-            <build>
-                
-            </build>
-        </profile>
-    </profiles>
+    <artifactId>cxf-osgi-activator-deployer-jetty</artifactId>
+    <packaging>bundle</packaging>
+    <name>CXF OSGi Service Deployer Jetty</name>
 	
     <build>
         <plugins>
@@ -31,38 +17,16 @@
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.15</version>
-                <configuration>
-                    <trimStackTrace>false</trimStackTrace>
-                    <workingDirectory>${project.build.directory}</workingDirectory>
-                    <argLine>${env.MAVEN_OPTS}</argLine>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.servicemix.tooling</groupId>
-                <artifactId>depends-maven-plugin</artifactId>		
-            </plugin>
         </plugins>
         
     </build>
     <dependencies>
         <dependency>
-            <groupId>com.github.mnybon</groupId>
-            <artifactId>cxf-osgi-activator-feature</artifactId>
-            <classifier>features</classifier>
-            <type>xml</type>
+            <groupId>org.apache.cxf</groupId>
+            <artifactId>cxf-rt-transports-http-jetty</artifactId>
         </dependency>
-        
-        <dependency>
-	    <groupId>org.apache.cxf.karaf</groupId>
-	    <artifactId>apache-cxf</artifactId>
-	    <classifier>features</classifier>
-            <type>xml</type>
-        </dependency>
-        
+		
+	 
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -114,32 +78,7 @@
 
 	
         <!--Test dependency start-->
-        <dependency>
-            <groupId>org.ops4j.pax.exam</groupId>
-            <artifactId>pax-exam-container-karaf</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.ops4j.pax.exam</groupId>
-            <artifactId>pax-exam-junit4</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.ops4j.pax.exam</groupId>
-            <artifactId>pax-exam</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.ops4j.pax.url</groupId>
-            <artifactId>pax-url-aether</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>javax.inject</groupId>
-            <artifactId>javax.inject</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-	
+
     </dependencies>
 
 </project>

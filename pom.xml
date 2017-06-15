@@ -21,14 +21,17 @@
     </licenses>
 	
     <modules>
-	
+        <module>deployer-jetty</module>
+        <module>deployer-jax-rs</module>
+        <module>feature</module>
+        <module>integration-test</module>
     </modules>
 	
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <resource.encoding>UTF-8</resource.encoding>
 
-        <cxf.version>3.0.2</cxf.version>
+        <cxf.version>3.1.11</cxf.version>
         <slf4j.version>1.7.12</slf4j.version>
         <pax.exam.version>4.8.0</pax.exam.version>
         <osgi.framework.version>5.0.0</osgi.framework.version>
@@ -123,6 +126,27 @@
         <pluginManagement>
             <plugins>
                 <plugin>
+                    <groupId>org.apache.felix</groupId>
+                    <artifactId>maven-bundle-plugin</artifactId>
+                    <version>3.3.0</version>
+                    <extensions>true</extensions>
+                    <configuration>
+                        <instructions>
+                            <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+                        </instructions>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>2.20</version>
+                    <configuration>
+                        <trimStackTrace>false</trimStackTrace>
+                        <workingDirectory>${project.build.directory}</workingDirectory>
+                        <argLine>${env.MAVEN_OPTS}</argLine>
+                    </configuration>
+                </plugin>
+                <plugin>
                     <groupId>org.apache.servicemix.tooling</groupId>
                     <artifactId>depends-maven-plugin</artifactId>
                     <version>1.3.1</version>
@@ -146,24 +170,57 @@
                 <groupId>com.github.mnybon</groupId>
                 <artifactId>cxf-osgi-activator-parent</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
+                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>com.github.mnybon</groupId>
                 <artifactId>cxf-osgi-activator-deployer-rs</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.github.mnybon</groupId>
+                <artifactId>cxf-osgi-activator-deployer-jetty</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>com.github.mnybon</groupId>
                 <artifactId>cxf-osgi-activator-integration-test</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
+                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>com.github.mnybon</groupId>
                 <artifactId>cxf-osgi-activator-feature</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
+                <classifier>features</classifier>
+                <type>xml</type>
+                <scope>provided</scope>
             </dependency>
 	
             <!--3rdparty dependency start -->
+            
+            <dependency>
+                <groupId>org.apache.cxf.karaf</groupId>
+                <artifactId>apache-cxf</artifactId>
+                <classifier>features</classifier>
+                <type>xml</type>
+                <version>${cxf.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.cxf</groupId>
+                <artifactId>cxf-rt-transports-http-jetty</artifactId>
+                <version>${cxf.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.cxf</groupId>
+                <artifactId>cxf-rt-frontend-jaxrs</artifactId>
+                <version>${cxf.version}</version>
+                <scope>provided</scope>
+            </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
