@@ -24,6 +24,7 @@
         <module>deployer-jetty</module>
         <module>deployer-jax-rs</module>
         <module>feature</module>
+	<module>deployer-test-components</module>
         <module>integration-test</module>
     </modules>
 	
@@ -181,6 +182,12 @@
             <dependency>
                 <groupId>com.github.mnybon</groupId>
                 <artifactId>cxf-osgi-activator-deployer-jetty</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.github.mnybon</groupId>
+                <artifactId>deployer-test-components</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
                 <scope>provided</scope>
             </dependency>

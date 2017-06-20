@@ -13,18 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.mnybon.deployer.jetty.service;
+package com.github.mnybon.deployer.testresources;
 
-import org.apache.cxf.configuration.jsse.TLSServerParameters;
+import com.github.mnybon.deployer.testresources.service.TestService3;
+import org.osgi.service.component.annotations.Component;
+import com.github.mnybon.deployer.rest.Constants;
 
 /**
  *
  * @author mnn
  */
-public interface EngineConfiguration {
+@Component(enabled = false, immediate = true, property = Constants.TARGET_SERVER+"="+"0.0.0.0:9090")
+public class TestServiceImpl3 implements TestService3 {
+
+    @Override
+    public String getTestString3() {
+        return "3";
+    }
     
-    public int getConfiguredPort();
-    
-    public TLSServerParameters getTLSParameters() throws Exception;
     
 }

@@ -13,18 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.mnybon.deployer.jetty.service;
+package com.github.mnybon.deployer.testresources.service;
 
-import org.apache.cxf.configuration.jsse.TLSServerParameters;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
 
 /**
  *
  * @author mnn
  */
-public interface EngineConfiguration {
+@Path("/test1")
+public interface TestService1 {
     
-    public int getConfiguredPort();
-    
-    public TLSServerParameters getTLSParameters() throws Exception;
+    @GET
+    public String getTestString1();
     
 }

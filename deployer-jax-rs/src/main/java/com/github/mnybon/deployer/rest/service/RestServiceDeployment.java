@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.mnybon.deployer.jetty.service;
+package com.github.mnybon.deployer.rest.service;
 
 /**
  *
  * @author mnn
  */
-public interface EngineEventHandler {
+public interface RestServiceDeployment {
+ 
+    public void rebuildClosedServers();
     
 }

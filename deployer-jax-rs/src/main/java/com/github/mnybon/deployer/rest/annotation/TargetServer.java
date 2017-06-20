@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.mnybon.deployer.jetty.service;
+package com.github.mnybon.deployer.rest.annotation;
 
-import org.apache.cxf.configuration.jsse.TLSServerParameters;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  *
  * @author mnn
  */
-public interface EngineConfiguration {
-    
-    public int getConfiguredPort();
-    
-    public TLSServerParameters getTLSParameters() throws Exception;
+@Retention(RetentionPolicy.RUNTIME)
+public @interface TargetServer {
+    String value();
     
 }

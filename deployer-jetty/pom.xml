@@ -22,6 +22,11 @@
     </build>
     <dependencies>
         <dependency>
+            <groupId>com.github.mnybon</groupId>
+            <artifactId>cxf-osgi-activator-deployer-rs</artifactId>
+        </dependency>
+        
+        <dependency>
             <groupId>org.apache.cxf</groupId>
             <artifactId>cxf-rt-transports-http-jetty</artifactId>
         </dependency>

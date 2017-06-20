@@ -7,21 +7,16 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <groupId>com.github.mnybon</groupId>
-    <artifactId>cxf-osgi-activator-deployer-rs</artifactId>
+    <artifactId>cxf-osgi-activator-test-components</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>bundle</packaging>
-    <name>CXF OSGi Service Deployer Rest</name>
+    <name>CXF OSGi Service Test Components</name>
 	
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
-                <configuration>
-                    <instructions>
-                        <DynamicImport-Package>*</DynamicImport-Package>
-                    </instructions>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -37,11 +32,19 @@
         
     </build>
     <dependencies>
+        
+        <dependency>
+            <groupId>com.github.mnybon</groupId>
+            <artifactId>cxf-osgi-activator-deployer-jetty</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.mnybon</groupId>
+            <artifactId>cxf-osgi-activator-deployer-rs</artifactId>
+        </dependency>
 	 
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -60,17 +63,14 @@
         <dependency>
             <groupId>org.osgi</groupId>
             <artifactId>org.osgi.core</artifactId>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.osgi</groupId>
             <artifactId>org.osgi.compendium</artifactId>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.karaf.features</groupId>

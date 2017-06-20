@@ -22,20 +22,24 @@
 	  name="CxfOSGiDeployer">
   
 
-  <feature name="cxf_osgi_deployer" version="${project.version}">
-       <feature>cxf_osgi_jetty_deployer</feature>
-       <feature>cxf_osgis_rest_deployer</feature>
+  <feature name="cxf_sei_service" version="${project.version}">
+       <feature>cxf_sei_service_jetty</feature>
+       <feature>cxf_sei_service_rest</feature>
   </feature>   
         
-  <feature name="cxf_osgi_jetty_deployer" version="${project.version}">
+  <feature name="cxf_sei_service_jetty" version="${project.version}">
       <feature>cxf</feature>
       <bundle>mvn:${project.groupId}/cxf-osgi-activator-deployer-jetty/${project.version}</bundle>
   </feature>
     
-  <feature name="cxf_osgis_rest_deployer" version="${project.version}">
+  <feature name="cxf_sei_service_rest" version="${project.version}">
       <feature>cxf</feature>
       <bundle>mvn:${project.groupId}/cxf-osgi-activator-deployer-rs/${project.version}</bundle>
   </feature>
-
+  
+  <feature name="cxf_sei_service_test_components" version="${project.version}">
+      <feature>cxf</feature>
+      <bundle>mvn:${project.groupId}/cxf-osgi-activator-test-components/${project.version}</bundle>
+  </feature>
 
 </features>

@@ -88,7 +88,7 @@ public class IntegrationTest {
             keepRuntimeFolder(),
             features(karafStandardRepo, "scr", "webconsole"),
             features(cxfRepo, "cxf"),
-            features(serviceDeployerRepo, "cxf_osgi_jetty_deployer"),
+            features(serviceDeployerRepo, "cxf_sei_service", "cxf_sei_service_test_components"),
             replaceConfigurationFile("etc/org.ops4j.pax.logging.cfg", new File(this.getClass().getClassLoader().getResource("com/github/mnybon/deployer/itest/org.ops4j.pax.logging.cfg").toURI())),
             replaceConfigurationFile("etc/org.ops4j.pax.url.mvn.cfg", new File(this.getClass().getClassLoader().getResource("com/github/mnybon/deployer/itest/org.ops4j.pax.url.mvn.cfg").toURI())),};
     }

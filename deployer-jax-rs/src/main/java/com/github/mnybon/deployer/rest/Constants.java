@@ -13,18 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.mnybon.deployer.jetty.service;
-
-import org.apache.cxf.configuration.jsse.TLSServerParameters;
+package com.github.mnybon.deployer.rest;
 
 /**
  *
  * @author mnn
  */
-public interface EngineConfiguration {
+public abstract class Constants {
+    public static final String TARGET_SERVER = "target_server";
     
-    public int getConfiguredPort();
     
-    public TLSServerParameters getTLSParameters() throws Exception;
+    
+    
+    
+    
+    private Constants() {
+    }
+    
+    
     
 }

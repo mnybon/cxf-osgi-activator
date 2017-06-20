@@ -16,7 +16,6 @@
 package com.github.mnybon.deployer.jetty;
 
 import com.github.mnybon.deployer.jetty.service.EngineConfiguration;
-import com.github.mnybon.deployer.jetty.service.EngineEventHandler;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
@@ -35,16 +34,23 @@ import org.osgi.util.tracker.ServiceTracker;
 import org.osgi.util.tracker.ServiceTrackerCustomizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.github.mnybon.deployer.jetty.service.JettyConfiguration;
+import com.github.mnybon.deployer.rest.service.RestServiceDeployment;
+import java.util.logging.Level;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.osgi.service.component.annotations.ReferencePolicy;
 
 /**
  *
  * @author mnn
  */
 @Component(immediate = true)
-public class JettyConfigurator implements EngineEventHandler {
+public class JettyConfigurator implements JettyConfiguration {
 
     private static Logger LOGGER = LoggerFactory.getLogger(JettyConfigurator.class);
 
+    private RestServiceDeployment restDeployer;
     private JettyHTTPServerEngineFactory factory;
     private ServiceTracker<EngineConfiguration, EngineConfiguration> configurationSources;
     private ServiceTracker<MBeanServer, MBeanServer> mBeanServerSources;
@@ -102,25 +108,67 @@ public class JettyConfigurator implements EngineEventHandler {
 
         @Override
         public synchronized EngineConfiguration addingService(ServiceReference<EngineConfiguration> reference) {
+            LOGGER.info("Discovered new "+EngineConfiguration.class.getSimpleName()+" service. Starting engine configuration");
             EngineConfiguration conf = super.addingService(reference);
             int port = conf.getConfiguredPort();
-            TLSServerParameters tlsParams = conf.getTLSParameters();
+            
             JettyHTTPServerEngine engine = factory.retrieveJettyHTTPServerEngine(port);
 
             if (engine != null) {
+                LOGGER.info("Found existing engine for port "+port+": "+engine+". Shutting it down");
                 engine.shutdown();
             }
 
             try {
+                TLSServerParameters tlsParams = conf.getTLSParameters();
+                LOGGER.info("Setting parameters for port: "+port+". Setting parameters: "+tlsParams);
                 factory.setTLSServerParametersForPort(port, tlsParams);
-                factory.retrieveJettyHTTPServerEngine(port);
+                engine = factory.retrieveJettyHTTPServerEngine(port);
+                LOGGER.info("Started new server: "+engine.getHost()+" "+engine.getPort()+" "+engine.getProtocol()+" "+engine.getConnector());
             } catch (GeneralSecurityException | IOException ex) {
+                LOGGER.error("An error occured when setting new TLSServerParameters for server: "+port, ex);
+                return conf;
+            } catch (Exception ex) {
+                LOGGER.error("An error occured when building TLSServerParameters for server: "+port, ex);
                 return conf;
             }
-
+            
+            if(restDeployer != null){
+                LOGGER.info("Rebuilding closed servers for port: "+port+".");
+                restDeployer.rebuildClosedServers();
+            }
+            
             return conf;
         }
 
     }
+
+    @Override
+    public void reconfigure(int port) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public boolean isManaged(int port) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public boolean manage(int port) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+    
+    
+    
+    @Reference(cardinality = ReferenceCardinality.OPTIONAL, policy = ReferencePolicy.DYNAMIC)
+    public void bindRestServiceDeployment(RestServiceDeployment deployer){
+        this.restDeployer = deployer;
+    }
+    
+    public void unbindRestServiceDeployment(RestServiceDeployment deployer){
+        this.restDeployer = null;
+    }
+    
+    
 
 }

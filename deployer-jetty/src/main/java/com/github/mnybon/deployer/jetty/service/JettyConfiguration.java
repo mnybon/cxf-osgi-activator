@@ -15,16 +15,14 @@
  */
 package com.github.mnybon.deployer.jetty.service;
 
-import org.apache.cxf.configuration.jsse.TLSServerParameters;
-
 /**
  *
  * @author mnn
  */
-public interface EngineConfiguration {
+public interface JettyConfiguration {
     
-    public int getConfiguredPort();
-    
-    public TLSServerParameters getTLSParameters() throws Exception;
+    public void reconfigure(int port);
+    public boolean isManaged(int port);
+    public boolean manage(int port);
     
 }
