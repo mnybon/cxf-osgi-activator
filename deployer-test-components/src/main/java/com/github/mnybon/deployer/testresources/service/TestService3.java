@@ -26,6 +26,7 @@ import javax.ws.rs.Path;
 public interface TestService3 {
     
     @GET
+    @Path("/teststring")
     public String getTestString3();
     
 }

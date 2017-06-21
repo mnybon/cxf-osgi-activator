@@ -23,8 +23,8 @@ import com.github.mnybon.deployer.rest.Constants;
  *
  * @author mnn
  */
-@Component(enabled = false, immediate = true, property = Constants.TARGET_SERVER+"="+"0.0.0.0:9090")
-public class TestServiceImpl3 implements TestService3 {
+@Component(enabled = false, immediate = true, property = Constants.TARGET_SERVER+"="+"http://0.0.0.0:9090/1")
+public class TestResourceSingleServiceWithAddress1 implements TestService3 {
 
     @Override
     public String getTestString3() {

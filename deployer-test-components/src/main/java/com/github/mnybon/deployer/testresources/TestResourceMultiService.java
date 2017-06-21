@@ -13,22 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.mnybon.deployer.testresources.service;
+package com.github.mnybon.deployer.testresources;
 
-import com.github.mnybon.deployer.rest.annotation.TargetServer;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
+import com.github.mnybon.deployer.testresources.service.TestService1;
+import com.github.mnybon.deployer.testresources.service.TestService2;
+import org.osgi.service.component.annotations.Component;
 
 /**
  *
  * @author mnn
  */
-@TargetServer("/services")
-@Path("/test2")
-public interface TestService2 {
+@Component(enabled = false, immediate = true)
+public class TestResourceMultiService implements TestService1, TestService2 {
+
+    @Override
+    public String getTestString1() {
+        return "1";
+    }
+
+    @Override
+    public String getTestString2() {
+        return "2";
+    }
     
-    @GET
-    @Path("/teststring")
-    public String getTestString2();
+    
     
 }

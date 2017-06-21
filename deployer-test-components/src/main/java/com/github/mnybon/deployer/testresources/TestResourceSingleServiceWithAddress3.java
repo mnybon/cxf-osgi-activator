@@ -13,22 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.mnybon.deployer.testresources.service;
+package com.github.mnybon.deployer.testresources;
 
-import com.github.mnybon.deployer.rest.annotation.TargetServer;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
+import com.github.mnybon.deployer.testresources.service.TestService3;
+import org.osgi.service.component.annotations.Component;
+import com.github.mnybon.deployer.rest.Constants;
+import com.github.mnybon.deployer.testresources.service.TestService1;
 
 /**
  *
  * @author mnn
  */
-@TargetServer("/services")
-@Path("/test2")
-public interface TestService2 {
+@Component(enabled = false, immediate = true, property = Constants.TARGET_SERVER+"="+"http://0.0.0.0:9090/2")
+public class TestResourceSingleServiceWithAddress3 implements TestService1 {
+
+    @Override
+    public String getTestString1() {
+        return "1";
+    }
     
-    @GET
-    @Path("/teststring")
-    public String getTestString2();
     
 }

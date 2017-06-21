@@ -23,7 +23,7 @@ import org.osgi.service.component.annotations.Component;
  * @author mnn
  */
 @Component(enabled = false, immediate = true)
-public class TestServiceImpl2 implements TestService3 {
+public class TestResourceSingleService implements TestService3 {
 
     @Override
     public String getTestString3() {

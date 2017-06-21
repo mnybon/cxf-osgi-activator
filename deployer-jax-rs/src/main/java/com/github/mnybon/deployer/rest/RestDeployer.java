@@ -138,8 +138,9 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
 
             if (isSEI(objectClassName)) {
                 Object implementation = context.getService(reference);
-
-                Server server = registerService(classToInspect, implementation, address);
+                Path pathAnnotation = classToInspect.getAnnotation(Path.class);
+                Server server = registerService(classToInspect, implementation, address, pathAnnotation.value());
+                LOGGER.info("Created server : "+server.getDestination().getAddress().getAddress().getValue());
                 servers.put(getServiceID(reference), server);
             }
 
@@ -148,18 +149,20 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
         }
     }
 
-    public Server registerService(Class<?> sei, Object implementation, String host) {
+    public Server registerService(Class<?> sei, Object implementation, String host, String path) {
         LOGGER.info("Registering " + sei.getCanonicalName() + " with implementation " + implementation + " on " + host);
         Path annotation = sei.getAnnotation(Path.class);
         if (annotation == null) {
             return null;
         }
-
+        
         JAXRSServerFactoryBean sf = new JAXRSServerFactoryBean();
         sf.setResourceClasses(sei);
         sf.setResourceProvider(sei, new SingletonResourceProvider(implementation));
         if (host != null && !host.isEmpty()) {
             sf.setAddress(host);
+        }else{
+            sf.setAddress("/rest/");
         }
         BindingFactoryManager manager = sf.getBus().getExtension(BindingFactoryManager.class);
         JAXRSBindingFactory factory = new JAXRSBindingFactory();
@@ -170,7 +173,7 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
 
     public synchronized void deregisterService(ServiceReference<?> ref) {
 
-        Server server = servers.get(ref);
+        Server server = servers.get(getServiceID(ref));
         if(server == null){
             LOGGER.error("Retrieved null Server for "+getObjectClass(ref) + " and ServiceID " + getServiceID(ref)+". This is an unexpected application state. Please report this to the projects github site.");
         }
@@ -218,9 +221,9 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
             return null;
         }
         LOGGER.info("Parsing "+property+" "+property.getClass());
-        if(property instanceof String && property instanceof Number){
+        if(property instanceof String || property instanceof Number){
             LOGGER.info("Returning value "+property);
-            return (String)property;
+            return property.toString();
         }
         if(property instanceof String[]){
             String[] propertyArray = (String[])property;
