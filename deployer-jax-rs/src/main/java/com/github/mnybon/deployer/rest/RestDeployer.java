@@ -54,15 +54,7 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RestDeployer.class);
 
-    private final Map<ServiceReference<?>, Server> servers = Collections.synchronizedMap(new TreeMap<ServiceReference<?>, Server>(new Comparator<ServiceReference<?>>() {
-        @Override
-        public int compare(ServiceReference<?> o1, ServiceReference<?> o2) {
-            String serviceID1 = getServiceID(o1);
-            String serviceID2 = getServiceID(o2);
-            return serviceID1.compareTo(serviceID2);
-        }
-
-    }));
+    private final Map<Integer, Server> servers = Collections.synchronizedMap(new TreeMap<Integer, Server>());
     private BundleContext context;
 
     @Activate
@@ -91,7 +83,7 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
                     return; //Not a tracked service
                 }
             } catch (ClassNotFoundException ex) {
-                LOGGER.warn("Failed to find a class matching "+getObjectClass(event.getServiceReference())+" from service ID "+getServiceID(event.getServiceReference()));
+                LOGGER.warn("Failed to find a class matching "+getObjectClass(event.getServiceReference())+" from service ID "+getServiceID(event.getServiceReference()), ex);
                 return;
             }
             LOGGER.debug("Caught deregistering event on " + getObjectClass(event.getServiceReference()) + " and ServiceID " + getServiceID(event.getServiceReference()));
@@ -101,9 +93,16 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
 
     @Override
     public void rebuildClosedServers() {
-        for (ServiceReference<?> ref : servers.keySet()) {
-            if (!servers.get(ref).isStarted()) {
-                LOGGER.info("Restarting stopped server: " + servers.get(ref) + " bound to " + getObjectClass(ref) + " and ServiceID " + getServiceID(ref));
+        for (Integer serviceID : servers.keySet()) {
+            if (!servers.get(serviceID).isStarted()) {
+                ServiceReference<?> ref;
+                try {
+                    ref = getReferenceByID(serviceID);
+                } catch (InvalidSyntaxException ex) {
+                    LOGGER.error("Could not find reference for serviceID "+serviceID, ex);
+                    continue;
+                }
+                LOGGER.info("Restarting stopped server: " + servers.get(serviceID) + " bound to " + getObjectClass(ref) + " and ServiceID " + getServiceID(ref));
                 deployIfSEI(ref);
             }
         }
@@ -126,6 +125,7 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
     }
 
     protected synchronized void deployIfSEI(ServiceReference<?> reference) {
+        LOGGER.info("Considering using "+reference+" as Service Interface");
         String objectClassName = getObjectClass(reference);
         String address = cleanProp(reference, Constants.TARGET_SERVER);
         try {
@@ -140,7 +140,7 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
                 Object implementation = context.getService(reference);
 
                 Server server = registerService(classToInspect, implementation, address);
-                servers.put(reference, server);
+                servers.put(getServiceID(reference), server);
             }
 
         } catch (ClassNotFoundException ex) {
@@ -180,16 +180,31 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
 
     }
     
+    protected ServiceReference<?> getReferenceByID(int serviceID) throws InvalidSyntaxException{
+        String clazzRef = null;
+        ServiceReference<?>[] references = context.getServiceReferences(clazzRef, "("+org.osgi.framework.Constants.SERVICE_ID+"="+serviceID+")");
+        if(references.length > 1){
+            throw new RuntimeException("Critical error: A servicereference by ID returned "+references.length+" results");
+        }
+        if(references.length == 0){
+            return null;
+        }
+        return references[0];
+    }
+    
     protected String getObjectClass(ServiceReference<?> ref){
         LOGGER.info("Getting ObjectClass from "+ref);
         return cleanProp(ref, org.osgi.framework.Constants.OBJECTCLASS);
     }
     
-    protected String getServiceID(ServiceReference<?> ref){
+    protected Integer getServiceID(ServiceReference<?> ref){
         LOGGER.info("Getting serviceID from "+ref);
         String result = cleanProp(ref, org.osgi.framework.Constants.SERVICE_ID);
         LOGGER.info("Got serviceID: "+result);
-        return result;
+        if(result == null){
+            return 0;
+        }
+        return Integer.parseInt(result);
     }
     
     protected String cleanProp(ServiceReference<?> ref, String key){
@@ -198,18 +213,19 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
     }
     
     protected String cleanProp(Object property){
-        LOGGER.info("Parsing "+property);
         if(property == null){
+            LOGGER.info("Property was null.");
             return null;
         }
-        if(property instanceof String){
-            LOGGER.info("Returning "+property);
+        LOGGER.info("Parsing "+property+" "+property.getClass());
+        if(property instanceof String && property instanceof Number){
+            LOGGER.info("Returning value "+property);
             return (String)property;
         }
         if(property instanceof String[]){
             String[] propertyArray = (String[])property;
             if(propertyArray.length>0){
-                LOGGER.info("Returning "+propertyArray[0]);
+                LOGGER.info("Returning array "+propertyArray[0]);
                 return propertyArray[0];
             }else{
                 return null;
