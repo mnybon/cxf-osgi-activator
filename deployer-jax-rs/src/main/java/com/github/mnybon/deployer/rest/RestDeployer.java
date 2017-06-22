@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import javax.ws.rs.Path;
@@ -99,13 +100,38 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
 
     @Override
     public synchronized void rebuildClosedServers() {
+        LOGGER.info("Restarting stopped servers");
         for (String path : servers.keySet()) {
             ServerPath serverPath = servers.get(path);
-            if (serverPath.getServer() != null && !serverPath.getServer().isStarted()) {
-
+            if (serverPath.getServer() == null || !serverPath.getServer().isStarted()) {
                 LOGGER.info("Restarting stopped server: " + servers.get(path));
                 rebuildServer(serverPath);
 
+            }
+        }
+    }
+
+    @Override
+    public synchronized void rebuildServers(Integer port) {
+        LOGGER.info("Restarting servers for port: "+port);
+        for (String path : servers.keySet()) {
+            ServerPath serverPath = servers.get(path);
+            
+            String url = serverPath.getPath();
+            int portIndex = url.lastIndexOf(":");
+            int portEndIndex = url.indexOf("/", portIndex);
+            LOGGER.info("Serverpath: "+serverPath+" "+portIndex+" "+portEndIndex);
+            Integer serverPort = null;
+
+            if(portIndex >= 0){
+                String portString = url.substring(portIndex+1, portEndIndex < 0 ? url.length() : portEndIndex);
+                LOGGER.info("Serverport "+portString);
+                serverPort = Integer.parseInt(portString);
+            }
+            LOGGER.info("Serverport: "+serverPort);
+            if (serverPort != null && serverPort.equals(port)) {
+                LOGGER.info("Restarting server: " + servers.get(path));
+                rebuildServer(serverPath);
             }
         }
     }
@@ -211,6 +237,7 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
     }
 
     private void rebuildServer(ServerPath path) {
+        LOGGER.info("Rebuilding "+path);
         if (path.getServer() != null && path.getServer().isStarted()) {
             path.getServer().stop();
         }
@@ -340,7 +367,7 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
 
     private static class ServerPath implements Comparable<ServerPath> {
 
-        private String path;
+        private final String path;
         private Server server;
         private final List<ResourcePath> resources = new ArrayList<>();
 
@@ -368,6 +395,40 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
         public int compareTo(ServerPath o) {
             return path.compareTo(o.path);
         }
+
+        @Override
+        public String toString() {
+            return "ServerPath{" + "path=" + path + ", server=" + server + ", resources=" + resources + '}';
+        }
+        
+        
+
+        @Override
+        public int hashCode() {
+            int hash = 3;
+            hash = 67 * hash + Objects.hashCode(this.path);
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final ServerPath other = (ServerPath) obj;
+            if (!Objects.equals(this.path, other.path)) {
+                return false;
+            }
+            return true;
+        }
+        
+        
 
     }
 
@@ -399,6 +460,39 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
         public int compareTo(ResourcePath o) {
             return path.compareTo(o.path);
         }
+
+        @Override
+        public int hashCode() {
+            int hash = 3;
+            hash = 53 * hash + Objects.hashCode(this.path);
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final ResourcePath other = (ResourcePath) obj;
+            if (!Objects.equals(this.path, other.path)) {
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return "ResourcePath{" + "path=" + path + ", sei=" + sei + ", resource=" + resource + '}';
+        }
+        
+        
+        
     }
 
 }

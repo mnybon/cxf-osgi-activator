@@ -36,13 +36,13 @@ import org.slf4j.LoggerFactory;
  *
  * @author mnn
  */
-@Component(enabled = false)
+@Component(immediate = true)
 public class SSLConfiguration1 implements EngineConfiguration{
     private static final Logger LOGGER = LoggerFactory.getLogger(SSLConfiguration1.class);
     
     @Override
     public int getConfiguredPort() {
-        return 9090;
+        return 9191;
     }
 
     @Override

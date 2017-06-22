@@ -36,7 +36,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.github.mnybon.deployer.jetty.service.JettyConfiguration;
 import com.github.mnybon.deployer.rest.service.RestServiceDeployment;
+import java.util.List;
 import java.util.logging.Level;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.handler.ContextHandler;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
@@ -60,6 +63,7 @@ public class JettyConfigurator implements JettyConfiguration {
         LOGGER.info("Starting configurator");
         mBeanServerSources = new ServiceTracker<>(context, MBeanServer.class, null);
         factory = new JettyHTTPServerEngineFactory() {
+            @Override
             public MBeanServer getMBeanServer() {
                 return mBeanServerSources.getService();
             }
@@ -108,36 +112,19 @@ public class JettyConfigurator implements JettyConfiguration {
 
         @Override
         public synchronized EngineConfiguration addingService(ServiceReference<EngineConfiguration> reference) {
-            LOGGER.info("Discovered new "+EngineConfiguration.class.getSimpleName()+" service. Starting engine configuration");
+            LOGGER.info("Discovered new " + EngineConfiguration.class.getSimpleName() + " service. Starting engine configuration");
             EngineConfiguration conf = super.addingService(reference);
             int port = conf.getConfiguredPort();
-            
-            JettyHTTPServerEngine engine = factory.retrieveJettyHTTPServerEngine(port);
-
-            if (engine != null) {
-                LOGGER.info("Found existing engine for port "+port+": "+engine+". Shutting it down");
-                engine.shutdown();
-            }
-
             try {
-                TLSServerParameters tlsParams = conf.getTLSParameters();
-                LOGGER.info("Setting parameters for port: "+port+". Setting parameters: "+tlsParams);
-                factory.setTLSServerParametersForPort(port, tlsParams);
-                engine = factory.retrieveJettyHTTPServerEngine(port);
-                LOGGER.info("Started new server: "+engine.getHost()+" "+engine.getPort()+" "+engine.getProtocol()+" "+engine.getConnector());
-            } catch (GeneralSecurityException | IOException ex) {
-                LOGGER.error("An error occured when setting new TLSServerParameters for server: "+port, ex);
-                return conf;
+                reconfigureServer(port, conf.getTLSParameters());
+                if (restDeployer != null) {
+                    LOGGER.info("Rebuilding closed servers for port: " + port + ".");
+                    restDeployer.rebuildServers(port);
+                }
             } catch (Exception ex) {
-                LOGGER.error("An error occured when building TLSServerParameters for server: "+port, ex);
-                return conf;
+                LOGGER.error("Error when reconfiguring server", ex);
             }
-            
-            if(restDeployer != null){
-                LOGGER.info("Rebuilding closed servers for port: "+port+".");
-                restDeployer.rebuildClosedServers();
-            }
-            
+
             return conf;
         }
 
@@ -145,7 +132,21 @@ public class JettyConfigurator implements JettyConfiguration {
 
     @Override
     public void reconfigure(int port) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        for (EngineConfiguration config : configurationSources.getServices(new EngineConfiguration[configurationSources.size()])) {
+            try {
+                if (config.getConfiguredPort() == port) {
+                    reconfigureServer(port, config.getTLSParameters());
+                    if (restDeployer != null) {
+                        LOGGER.info("Rebuilding closed servers for port: " + port + ".");
+                        restDeployer.rebuildServers(port);
+                    }
+                    return;
+                }
+            } catch (Exception ex) {
+                LOGGER.info("Could not reconfigure server: " + port, ex);
+            }
+
+        }
     }
 
     @Override
@@ -157,18 +158,42 @@ public class JettyConfigurator implements JettyConfiguration {
     public boolean manage(int port) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
-    
-    
-    
+
+    public void reconfigureServer(int port, TLSServerParameters parameters) {
+        JettyHTTPServerEngine engine = factory.retrieveJettyHTTPServerEngine(port);
+
+        try {
+            if (engine != null) {
+                LOGGER.info("Found existing engine for port " + port + ": " + engine + ". Shutting server down");
+                JettyHTTPServerEngineFactory.destroyForPort(port);
+            }
+
+            TLSServerParameters tlsParams = parameters;
+            LOGGER.info("Setting parameters for port: " + port + ". Setting parameters: " + tlsParams);
+            if (tlsParams != null) {
+                factory.setTLSServerParametersForPort(port, tlsParams);
+            } else {
+                factory.createJettyHTTPServerEngine(null, port, "http");
+            }
+
+            engine = factory.retrieveJettyHTTPServerEngine(port);
+            LOGGER.info("Started new server: " + engine.getHost() + " " + engine.getPort() + " " + engine.getProtocol() + " " + engine.getConnector());
+        } catch (GeneralSecurityException | IOException ex) {
+            LOGGER.error("An error occured when setting new TLSServerParameters for server: " + port, ex);
+        } catch (RuntimeException ex) {
+            LOGGER.error("An error occured when building TLSServerParameters for server: " + port, ex);
+        } catch (Exception ex) {
+            LOGGER.error("An error occured when building TLSServerParameters for server: " + port, ex);
+        }
+    }
+
     @Reference(cardinality = ReferenceCardinality.OPTIONAL, policy = ReferencePolicy.DYNAMIC)
-    public void bindRestServiceDeployment(RestServiceDeployment deployer){
+    public void bindRestServiceDeployment(RestServiceDeployment deployer) {
         this.restDeployer = deployer;
     }
-    
-    public void unbindRestServiceDeployment(RestServiceDeployment deployer){
+
+    public void unbindRestServiceDeployment(RestServiceDeployment deployer) {
         this.restDeployer = null;
     }
-    
-    
 
 }

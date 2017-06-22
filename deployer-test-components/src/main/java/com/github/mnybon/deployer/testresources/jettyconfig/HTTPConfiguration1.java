@@ -13,15 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.mnybon.deployer.rest.service;
+package com.github.mnybon.deployer.testresources.jettyconfig;
+
+import com.github.mnybon.deployer.jetty.service.EngineConfiguration;
+import org.apache.cxf.configuration.jsse.TLSServerParameters;
+import org.osgi.service.component.annotations.Component;
 
 /**
  *
  * @author mnn
  */
-public interface RestServiceDeployment {
- 
-    public void rebuildClosedServers();
-    public void rebuildServers(Integer port);
+@Component(enabled = false)
+public class HTTPConfiguration1 implements EngineConfiguration {
+
+    @Override
+    public int getConfiguredPort() {
+        return 9090;
+    }
+
+    @Override
+    public TLSServerParameters getTLSParameters() throws Exception {
+        return null;
+    }
+    
+    
     
 }
