@@ -15,16 +15,14 @@
  */
 package com.github.mnybon.deployer.testresources;
 
-import com.github.mnybon.deployer.testresources.service.TestService3;
 import org.osgi.service.component.annotations.Component;
-import com.github.mnybon.deployer.rest.Constants;
 import com.github.mnybon.deployer.testresources.service.TestService2;
 
 /**
  *
  * @author mnn
  */
-@Component(enabled = false, immediate = true)
+@Component(immediate = true)
 public class TestResourceSingleServiceWithAddressAnnotation implements TestService2 {
 
     @Override

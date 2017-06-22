@@ -140,7 +140,7 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
     protected synchronized void deployIfSEI(ServiceReference<?> reference) throws ClassNotFoundException {
         LOGGER.info("Considering using " + reference + " as Service Interface");
         Object service = null;
-        String addressProperty = cleanProp(reference, Constants.TARGET_SERVER);
+        String addressProperty = getAddressByProperty(reference);
 
         Set<String> pathsToRebuild = new HashSet<>();
 
@@ -184,11 +184,12 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
                 Class<?> classToInspect = Class.forName(objectClass);
                 TargetServer addressAnnotation = classToInspect.getAnnotation(TargetServer.class);
                 Path pathAnnotation = classToInspect.getAnnotation(Path.class);
-                String pathString = getAddress(objectClass, addressAnnotation);
+                String pathString = getAddress(getAddressByProperty(ref), addressAnnotation);
                 ServerPath path = servers.get(pathString);
-                for (ResourcePath resourcePath : path.getResources()) {
-                    if (resourcePath.getPath().equals(pathAnnotation.value())) {
-                        path.getResources().remove(ref);
+                List<ResourcePath> resourcePaths = path.getResources();
+                for (int i = resourcePaths.size()-1 ; i>=0 ; i--) {
+                    if (resourcePaths.get(i).getPath().equals(pathAnnotation.value())) {
+                        resourcePaths.remove(i);
                         pathsToRebuild.add(pathString);
                     }
                 }
@@ -224,11 +225,9 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
         for (ResourcePath resource : path.getResources()) {
             sf.setResourceProvider(resource.getSei(), new SingletonResourceProvider(resource.getResource()));
         }
-        if (path.getPath() != null && !path.getPath().isEmpty()) {
-            sf.setAddress(path.getPath());
-        } else {
-            sf.setAddress("/rest/");
-        }
+        sf.setAddress(path.getPath());
+        
+        
         BindingFactoryManager manager = sf.getBus().getExtension(BindingFactoryManager.class);
         JAXRSBindingFactory factory = new JAXRSBindingFactory();
         factory.setBus(sf.getBus());
@@ -254,7 +253,7 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
         if (annotation != null) {
             return annotation.value();
         }
-        return null;
+        return "/rest";
 
     }
 
@@ -274,6 +273,10 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
         return new HashSet<>();
         
 
+    }
+    
+    protected String getAddressByProperty(ServiceReference ref){
+        return cleanProp(ref, Constants.TARGET_SERVER);
     }
 
     protected Set<String> getObjectClasses(String objectClassNames) {

@@ -15,7 +15,6 @@
  */
 package com.github.mnybon.deployer.testresources;
 
-import com.github.mnybon.deployer.testresources.service.TestService3;
 import org.osgi.service.component.annotations.Component;
 import com.github.mnybon.deployer.rest.Constants;
 import com.github.mnybon.deployer.testresources.service.TestService1;
@@ -24,7 +23,7 @@ import com.github.mnybon.deployer.testresources.service.TestService1;
  *
  * @author mnn
  */
-@Component(enabled = false, immediate = true, property = Constants.TARGET_SERVER+"="+"http://0.0.0.0:9090/2")
+@Component(immediate = true, property = Constants.TARGET_SERVER+"="+"http://0.0.0.0:9090/2")
 public class TestResourceSingleServiceWithAddress3 implements TestService1 {
 
     @Override
