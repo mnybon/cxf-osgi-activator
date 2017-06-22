@@ -17,19 +17,18 @@ package com.github.mnybon.deployer.rest;
 
 import com.github.mnybon.deployer.rest.annotation.TargetServer;
 import com.github.mnybon.deployer.rest.service.RestServiceDeployment;
-import java.lang.annotation.Annotation;
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.Dictionary;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Set;
 import java.util.logging.Level;
-import javax.management.MBeanServer;
 import javax.ws.rs.Path;
 import org.apache.cxf.binding.BindingFactoryManager;
 import org.apache.cxf.endpoint.Server;
-import org.apache.cxf.endpoint.ServerImpl;
 import org.apache.cxf.jaxrs.JAXRSBindingFactory;
 import org.apache.cxf.jaxrs.JAXRSServerFactoryBean;
 import org.apache.cxf.jaxrs.lifecycle.SingletonResourceProvider;
@@ -41,7 +40,6 @@ import org.osgi.framework.ServiceReference;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
-import org.osgi.util.tracker.ServiceTracker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,11 +52,11 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RestDeployer.class);
 
-    private final Map<Integer, Server> servers = Collections.synchronizedMap(new TreeMap<Integer, Server>());
+    private final Map<String, ServerPath> servers = Collections.synchronizedMap(new HashMap<String, ServerPath>());
     private BundleContext context;
 
     @Activate
-    public void activate(BundleContext context) throws InvalidSyntaxException {
+    public void activate(BundleContext context) throws InvalidSyntaxException, ClassNotFoundException {
         this.context = context;
         inspectRunningServicesForSEI();
         context.addServiceListener(this);
@@ -67,174 +65,337 @@ public class RestDeployer implements ServiceListener, RestServiceDeployment {
     @Deactivate
     public void deactivate(BundleContext context) {
         context.removeServiceListener(this);
-        for (Server service : servers.values()) {
-            service.stop();
+        for (ServerPath service : servers.values()) {
+            service.getServer().stop();
         }
+        servers.clear();
+        this.context = null;
     }
 
     @Override
     public void serviceChanged(ServiceEvent event) {
         if (event.getType() == ServiceEvent.REGISTERED) {
             LOGGER.debug("Caught registered event on " + getObjectClass(event.getServiceReference()) + " and ServiceID " + getServiceID(event.getServiceReference()));
-            deployIfSEI(event.getServiceReference());
+            try {
+                deployIfSEI(event.getServiceReference());
+            } catch (ClassNotFoundException ex) {
+                LOGGER.warn("Failed to deploy " + getObjectClass(event.getServiceReference()) + " from service ID " + getServiceID(event.getServiceReference()), ex);
+            }
         } else if (event.getType() == ServiceEvent.UNREGISTERING) {
             try {
                 if (!isSEI(getObjectClass(event.getServiceReference()))) {
                     return; //Not a tracked service
                 }
+                LOGGER.debug("Deregistering event on " + getObjectClass(event.getServiceReference()) + " and ServiceID " + getServiceID(event.getServiceReference()));
+
+                deregisterService(event.getServiceReference());
+                context.ungetService(event.getServiceReference());
             } catch (ClassNotFoundException ex) {
-                LOGGER.warn("Failed to find a class matching "+getObjectClass(event.getServiceReference())+" from service ID "+getServiceID(event.getServiceReference()), ex);
-                return;
+                LOGGER.warn("Caught deregistering event on " + getObjectClass(event.getServiceReference()) + " from service ID " + getServiceID(event.getServiceReference()), ex);
             }
-            LOGGER.debug("Caught deregistering event on " + getObjectClass(event.getServiceReference()) + " and ServiceID " + getServiceID(event.getServiceReference()));
-            deregisterService(event.getServiceReference());
+
         }
     }
 
     @Override
-    public void rebuildClosedServers() {
-        for (Integer serviceID : servers.keySet()) {
-            if (!servers.get(serviceID).isStarted()) {
-                ServiceReference<?> ref;
-                try {
-                    ref = getReferenceByID(serviceID);
-                } catch (InvalidSyntaxException ex) {
-                    LOGGER.error("Could not find reference for serviceID "+serviceID, ex);
-                    continue;
-                }
-                LOGGER.info("Restarting stopped server: " + servers.get(serviceID) + " bound to " + getObjectClass(ref) + " and ServiceID " + getServiceID(ref));
-                deployIfSEI(ref);
+    public synchronized void rebuildClosedServers() {
+        for (String path : servers.keySet()) {
+            ServerPath serverPath = servers.get(path);
+            if (serverPath.getServer() != null && !serverPath.getServer().isStarted()) {
+
+                LOGGER.info("Restarting stopped server: " + servers.get(path));
+                rebuildServer(serverPath);
+
             }
         }
     }
 
-    public void inspectRunningServicesForSEI() throws InvalidSyntaxException {
+    public synchronized void inspectRunningServicesForSEI() throws InvalidSyntaxException {
         String toSearch = null;
         ServiceReference[] allRefs = context.getServiceReferences(toSearch, null);
         for (ServiceReference<Object> ref : allRefs) {
-            deployIfSEI(ref);
+            try {
+                deployIfSEI(ref);
+            } catch (ClassNotFoundException ex) {
+                LOGGER.warn("Failed to import running service. Could not resolve classes " + getObjectClasses(ref) + " from Reference " + ref, ex);
+            }
         }
-        
-    }
-
-    protected boolean isSEI(String objectClassName) throws ClassNotFoundException {
-        Class<?> classToInspect = Class.forName(objectClassName);
-        Path pathAnnotation = classToInspect.getAnnotation(Path.class);
-        return pathAnnotation != null;
 
     }
 
-    protected synchronized void deployIfSEI(ServiceReference<?> reference) {
-        LOGGER.info("Considering using "+reference+" as Service Interface");
-        String objectClassName = getObjectClass(reference);
-        String address = cleanProp(reference, Constants.TARGET_SERVER);
-        try {
+    protected boolean isSEI(String objectClassNames) throws ClassNotFoundException {
+        Set<String> objectClasses = getObjectClasses(objectClassNames);
+
+        for (String objectClassName : objectClasses) {
             Class<?> classToInspect = Class.forName(objectClassName);
-            TargetServer addressAnnotation = classToInspect.getAnnotation(TargetServer.class);
-
-            if (address == null) {
-                address = addressAnnotation != null ? addressAnnotation.value() : null;
+            Path pathAnnotation = classToInspect.getAnnotation(Path.class);
+            if (pathAnnotation != null) {
+                return true;
             }
+        }
+        return false;
 
-            if (isSEI(objectClassName)) {
-                Object implementation = context.getService(reference);
+    }
+
+    protected synchronized void deployIfSEI(ServiceReference<?> reference) throws ClassNotFoundException {
+        LOGGER.info("Considering using " + reference + " as Service Interface");
+        Object service = null;
+        String addressProperty = cleanProp(reference, Constants.TARGET_SERVER);
+
+        Set<String> pathsToRebuild = new HashSet<>();
+
+        Set<String> objectClasses = getObjectClasses(reference);
+        for (String objectClass : objectClasses) {
+            LOGGER.info("Inspecting class: " + objectClass);
+            if (isSEI(objectClass)) {
+                if (service == null) {
+                    service = context.getService(reference);
+                }
+                Class<?> classToInspect = Class.forName(objectClass);
+                TargetServer addressAnnotation = classToInspect.getAnnotation(TargetServer.class);
                 Path pathAnnotation = classToInspect.getAnnotation(Path.class);
-                Server server = registerService(classToInspect, implementation, address, pathAnnotation.value());
-                LOGGER.info("Created server : "+server.getDestination().getAddress().getAddress().getValue());
-                servers.put(getServiceID(reference), server);
+                String seiAddress = getAddress(addressProperty, addressAnnotation);
+
+                ServerPath path = servers.get(seiAddress);
+                if (path == null) {
+                    path = new ServerPath(seiAddress);
+                    servers.put(seiAddress, path);
+                }
+
+                ResourcePath resourcepath = new ResourcePath(pathAnnotation.value(), classToInspect, service);
+                if (path.getResources().contains(resourcepath)) {
+                    LOGGER.error("Attempted to register a second service on " + seiAddress + " with relative path " + resourcepath.getPath());
+                    continue;
+                }
+                path.getResources().add(resourcepath);
+                pathsToRebuild.add(path.getPath());
             }
 
-        } catch (ClassNotFoundException ex) {
-            LOGGER.warn("Attemped to build class from " + objectClassName + " but could not find the class");
+        }
+        rebuildServers(pathsToRebuild);
+
+    }
+
+    public synchronized void deregisterService(ServiceReference<?> ref) throws ClassNotFoundException {
+        Set<String> pathsToRebuild = new HashSet<>();
+
+        for (String objectClass : getObjectClasses(ref)) {
+            if (isSEI(objectClass)) {
+                Class<?> classToInspect = Class.forName(objectClass);
+                TargetServer addressAnnotation = classToInspect.getAnnotation(TargetServer.class);
+                Path pathAnnotation = classToInspect.getAnnotation(Path.class);
+                String pathString = getAddress(objectClass, addressAnnotation);
+                ServerPath path = servers.get(pathString);
+                for (ResourcePath resourcePath : path.getResources()) {
+                    if (resourcePath.getPath().equals(pathAnnotation.value())) {
+                        path.getResources().remove(ref);
+                        pathsToRebuild.add(pathString);
+                    }
+                }
+            }
+
+        }
+        rebuildServers(pathsToRebuild);
+    }
+
+    private void rebuildServers(Set<String> pathsToBuild) {
+        for (String path : pathsToBuild) {
+            ServerPath serverPath = servers.get(path);
+            if (serverPath == null) {
+                LOGGER.error("Could not find serverPath for this server. This is an unexpected system state. Please notify the project owner: " + path);
+                continue;
+            }
+            rebuildServer(serverPath);
         }
     }
 
-    public Server registerService(Class<?> sei, Object implementation, String host, String path) {
-        LOGGER.info("Registering " + sei.getCanonicalName() + " with implementation " + implementation + " on " + host);
-        Path annotation = sei.getAnnotation(Path.class);
-        if (annotation == null) {
-            return null;
+    private void rebuildServer(ServerPath path) {
+        if (path.getServer() != null && path.getServer().isStarted()) {
+            path.getServer().stop();
         }
-        
+
+        if (path.getResources().isEmpty()) {
+            servers.remove(path.getPath());
+            return;
+        }
+
         JAXRSServerFactoryBean sf = new JAXRSServerFactoryBean();
-        sf.setResourceClasses(sei);
-        sf.setResourceProvider(sei, new SingletonResourceProvider(implementation));
-        if (host != null && !host.isEmpty()) {
-            sf.setAddress(host);
-        }else{
+        sf.setResourceClasses(getResourceClasses(path));
+        for (ResourcePath resource : path.getResources()) {
+            sf.setResourceProvider(resource.getSei(), new SingletonResourceProvider(resource.getResource()));
+        }
+        if (path.getPath() != null && !path.getPath().isEmpty()) {
+            sf.setAddress(path.getPath());
+        } else {
             sf.setAddress("/rest/");
         }
         BindingFactoryManager manager = sf.getBus().getExtension(BindingFactoryManager.class);
         JAXRSBindingFactory factory = new JAXRSBindingFactory();
         factory.setBus(sf.getBus());
         manager.registerBindingFactory(JAXRSBindingFactory.JAXRS_BINDING_ID, factory);
-        return sf.create();
+        Server server = sf.create();
+        path.setServer(server);
+
     }
 
-    public synchronized void deregisterService(ServiceReference<?> ref) {
-
-        Server server = servers.get(getServiceID(ref));
-        if(server == null){
-            LOGGER.error("Retrieved null Server for "+getObjectClass(ref) + " and ServiceID " + getServiceID(ref)+". This is an unexpected application state. Please report this to the projects github site.");
+    public List<Class<?>> getResourceClasses(ServerPath path) {
+        List<Class<?>> classes = new ArrayList<>();
+        for (ResourcePath resource : path.getResources()) {
+            classes.add(resource.getSei());
         }
-        LOGGER.info("Stopping server for " + getObjectClass(ref) + " and ServiceID " + getServiceID(ref) + " with server " + server);
-
-        server.stop();
+        return classes;
 
     }
-    
-    protected ServiceReference<?> getReferenceByID(int serviceID) throws InvalidSyntaxException{
+
+    protected String getAddress(String addressProperty, TargetServer annotation) {
+        if (addressProperty != null && !addressProperty.isEmpty()) {
+            return addressProperty;
+        }
+        if (annotation != null) {
+            return annotation.value();
+        }
+        return null;
+
+    }
+
+    protected Set<String> getObjectClasses(ServiceReference ref) {
+        Object objectClasses = ref.getProperty(org.osgi.framework.Constants.OBJECTCLASS);
+        LOGGER.info("Getting object classes from " + ref + ": " + objectClasses);
+        if (objectClasses != null) {
+            LOGGER.info("Getting object class: "+objectClasses.getClass());
+            if (objectClasses instanceof String) {
+                return getObjectClasses((String) objectClasses);
+            }
+            if (objectClasses instanceof String[]) {
+                String[] objectClassesArray = (String[])objectClasses;
+                return new HashSet<>(Arrays.asList(objectClassesArray));
+            }
+        } 
+        return new HashSet<>();
+        
+
+    }
+
+    protected Set<String> getObjectClasses(String objectClassNames) {
+        Set<String> objectClasses = new HashSet<>(Arrays.asList(objectClassNames.replaceAll("/s", "").split(",")));
+
+        return objectClasses;
+
+    }
+
+    protected ServiceReference<?> getReferenceByID(int serviceID) throws InvalidSyntaxException {
         String clazzRef = null;
-        ServiceReference<?>[] references = context.getServiceReferences(clazzRef, "("+org.osgi.framework.Constants.SERVICE_ID+"="+serviceID+")");
-        if(references.length > 1){
-            throw new RuntimeException("Critical error: A servicereference by ID returned "+references.length+" results");
+        ServiceReference<?>[] references = context.getServiceReferences(clazzRef, "(" + org.osgi.framework.Constants.SERVICE_ID + "=" + serviceID + ")");
+        if (references.length > 1) {
+            throw new RuntimeException("Critical error: A servicereference by ID returned " + references.length + " results");
         }
-        if(references.length == 0){
+        if (references.length == 0) {
             return null;
         }
         return references[0];
     }
-    
-    protected String getObjectClass(ServiceReference<?> ref){
-        LOGGER.info("Getting ObjectClass from "+ref);
+
+    protected String getObjectClass(ServiceReference<?> ref) {
+        LOGGER.info("Getting ObjectClass from " + ref);
         return cleanProp(ref, org.osgi.framework.Constants.OBJECTCLASS);
     }
-    
-    protected Integer getServiceID(ServiceReference<?> ref){
-        LOGGER.info("Getting serviceID from "+ref);
+
+    protected Integer getServiceID(ServiceReference<?> ref) {
+        LOGGER.info("Getting serviceID from " + ref);
         String result = cleanProp(ref, org.osgi.framework.Constants.SERVICE_ID);
-        LOGGER.info("Got serviceID: "+result);
-        if(result == null){
+        LOGGER.info("Got serviceID: " + result);
+        if (result == null) {
             return 0;
         }
         return Integer.parseInt(result);
     }
-    
-    protected String cleanProp(ServiceReference<?> ref, String key){
-        LOGGER.info("Getting property from "+ref+" ["+key+"]");
+
+    protected String cleanProp(ServiceReference<?> ref, String key) {
+        LOGGER.info("Getting property from " + ref + " [" + key + "]: " + ref.getProperty(key));
         return cleanProp(ref.getProperty(key));
     }
-    
-    protected String cleanProp(Object property){
-        if(property == null){
-            LOGGER.info("Property was null.");
+
+    protected String cleanProp(Object property) {
+        if (property == null) {
             return null;
         }
-        LOGGER.info("Parsing "+property+" "+property.getClass());
-        if(property instanceof String || property instanceof Number){
-            LOGGER.info("Returning value "+property);
+        if (property instanceof String || property instanceof Number) {
+            LOGGER.info("Returning value " + property);
             return property.toString();
         }
-        if(property instanceof String[]){
-            String[] propertyArray = (String[])property;
-            if(propertyArray.length>0){
-                LOGGER.info("Returning array "+propertyArray[0]);
+        if (property instanceof String[]) {
+            String[] propertyArray = (String[]) property;
+            if (propertyArray.length > 0) {
+                LOGGER.info("Returning array " + propertyArray[0]);
                 return propertyArray[0];
-            }else{
+            } else {
                 return null;
             }
         }
         return null;
+    }
+
+    private static class ServerPath implements Comparable<ServerPath> {
+
+        private String path;
+        private Server server;
+        private final List<ResourcePath> resources = new ArrayList<>();
+
+        public ServerPath(String path) {
+            this.path = path;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public Server getServer() {
+            return server;
+        }
+
+        public void setServer(Server server) {
+            this.server = server;
+        }
+
+        public List<ResourcePath> getResources() {
+            return resources;
+        }
+
+        @Override
+        public int compareTo(ServerPath o) {
+            return path.compareTo(o.path);
+        }
+
+    }
+
+    private static class ResourcePath implements Comparable<ResourcePath> {
+
+        private String path;
+        private Class sei;
+        private Object resource;
+
+        public ResourcePath(String path, Class sei, Object resource) {
+            this.path = path;
+            this.sei = sei;
+            this.resource = resource;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public Class getSei() {
+            return sei;
+        }
+
+        public Object getResource() {
+            return resource;
+        }
+
+        @Override
+        public int compareTo(ResourcePath o) {
+            return path.compareTo(o.path);
+        }
     }
 
 }
